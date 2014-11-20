@@ -16,10 +16,10 @@
 #define HZ                  10
 #define BUFFER_SIZE         1
 
-#define NODE_NAME           		"s8_master"
-#define TOPIC_OBJECT_TYPE   		"/s8/Classification/type"
+#define NODE_NAME           		  "s8_master"
+#define TOPIC_OBJECT_TYPE   		  "/s8/Classification/type"
 #define TOPIC_EXTRACTED_OBJECTS		"/s8/modifiedObject"
-#define CONFIG_DOC                  "catkin_ws/src/s8_master/parameters/parameters.json"
+#define CONFIG_DOC                "catkin_ws/src/s8_master/parameters/parameters.json"
 
 
 using namespace std;
