@@ -25,3 +25,6 @@ catkin_package(
 	CATKIN_DEPENDS message_runtime s8_common_node s8_msgs
 )
 include_directories(${catkin_INCLUDE_DIRS})
+
+add_executable(master src/master.cpp)
+target_link_libraries(master ${catkin_LIBRARIES})
