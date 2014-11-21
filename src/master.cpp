@@ -36,7 +36,9 @@ class NodeMaster: public s8::Node
     int count[11];
     int j;
 
-    float circle_red_low_H;
+    // PARAMETERS
+    int number_of_checks;
+    float no_object_percentage;
 
 public:
     NodeMaster(int hz) : hz(hz)
@@ -60,7 +62,7 @@ public:
             ROS_INFO("Not Initalized!");
             return;
         }
-        if (j == 50)
+        if (j == number_of_checks)
         {
             int idx = idxOfMax(count);
             string name = typeFromInt(idx);
@@ -85,7 +87,14 @@ private:
     {
         int maxSize = 0;
         int idx = 0;
-        for (int k = 0; k < 11; k++)
+
+        // Check to see if there really is an object
+        if (count[0]> no_object_percentage * number_of_checks)
+            return 0;
+
+        // If there is an object, loop through them to find the one
+        // that occurs the most often
+        for (int k = 1; k < 11; k++)
         {
             if (count[k] > maxSize)
             {
@@ -136,8 +145,9 @@ private:
     {
         boost::property_tree::ptree pt;
         boost::property_tree::read_json(CONFIG_DOC, pt);
-        // CIRCLE
-        circle_red_low_H = pt.get<float>("circle_red_low_H");
+        // CLASSIFICATION
+        no_object_percentage    = pt.get<float>("no_object_percentage");
+        number_of_checks        = pt.get<int>("number_of_checks");
     }
 };
 
