@@ -2,6 +2,9 @@
 #include <s8_common_node/Node.h>
 #include <s8_msgs/Classification.h>
 #include <s8_master/master_node.h>
+#include <actionlib/client/simple_action_client.h>
+#include <s8_object_aligner/ObjectAlignAction.h>
+
 
 // OTHER
 #include <vector>
@@ -25,6 +28,8 @@ class NodeMaster: public Node
 {
     const int hz;
 
+    actionlib::SimpleActionClient<s8_object_aligner::ObjectAlignAction> object_align_action;
+
     ros::Subscriber object_type_subscriber;
     ros::Publisher point_cloud_publisher;
     s8_msgs::Classification classType;
@@ -34,9 +39,8 @@ class NodeMaster: public Node
     int j;
 
     float circle_red_low_H;
-
 public:
-    NodeMaster(int hz) : hz(hz)
+    NodeMaster(int hz) : hz(hz), object_align_action(ACTION_OBJECT_ALIGN, true)
     {
         add_params();
         //printParams();
@@ -45,6 +49,10 @@ public:
         isClassTypeInitialized = false;
         std::fill(count,count+11,0);
         j = 0;
+
+        ROS_INFO("Waiting for object align action server...");
+        object_align_action.waitForServer();
+        ROS_INFO("Connected to obejct align server!");
     }
 
     void updateClass()
@@ -74,6 +82,21 @@ public:
     }
 
 private:
+    void align() {
+        ROS_INFO("Object aligning....");
+        s8_object_aligner::ObjectAlignGoal goal;
+        goal.align = true;
+        object_align_action.sendGoal(goal);
+
+        bool finised_before_timeout = object_align_action.waitForResult(ros::Duration(30.0));
+
+        if(finised_before_timeout) {
+            actionlib::SimpleClientGoalState state = object_align_action.getState();
+            ROS_INFO("Object align action finished. %s", state.toString().c_str());
+        } else {
+            ROS_WARN("Object align action timed out.");
+        }
+    }
 
     int idxOfMax(int count[])
     {
