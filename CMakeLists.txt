@@ -12,11 +12,12 @@ find_package(catkin REQUIRED COMPONENTS
     s8_msgs
     s8_object_aligner
     actionlib
+    s8_explorer
 )
 
 catkin_package(
     DEPENDS
-    CATKIN_DEPENDS message_runtime s8_common_node s8_msgs s8_object_aligner actionlib
+    CATKIN_DEPENDS message_runtime s8_common_node s8_msgs s8_object_aligner actionlib s8_explorer
 )
 include_directories(include ${catkin_INCLUDE_DIRS})
 

@@ -2,6 +2,7 @@
 #define __MASTER_NODE_H
 
 #include <s8_object_aligner/object_aligner_node.h>
+#include <s8_explorer/explorer_node.h>
 
 namespace s8 {
     namespace master_node {
@@ -12,6 +13,7 @@ namespace s8 {
         const std::string CONFIG_DOC =                  "/home/ras/catkin_ws/src/s8_master/parameters/parameters.json";
 
         const std::string ACTION_OBJECT_ALIGN =         s8::object_aligner_node::ACTION_OBJECT_ALIGN;
+        const std::string ACTION_EXPLORE =              s8::explorer_node::ACTION_EXPLORE;
     }
 }
 

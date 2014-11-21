@@ -4,6 +4,7 @@
 #include <s8_master/master_node.h>
 #include <actionlib/client/simple_action_client.h>
 #include <s8_object_aligner/ObjectAlignAction.h>
+#include <s8_explorer/ExploreAction.h>
 
 
 // OTHER
@@ -29,6 +30,7 @@ class NodeMaster: public Node
     const int hz;
 
     actionlib::SimpleActionClient<s8_object_aligner::ObjectAlignAction> object_align_action;
+    actionlib::SimpleActionClient<s8_explorer::ExploreAction> explore_action;
 
     ros::Subscriber object_type_subscriber;
     ros::Publisher point_cloud_publisher;
@@ -39,8 +41,10 @@ class NodeMaster: public Node
     int j;
 
     float circle_red_low_H;
+
+    bool exploring;
 public:
-    NodeMaster(int hz) : hz(hz), object_align_action(ACTION_OBJECT_ALIGN, true)
+    NodeMaster(int hz) : hz(hz), object_align_action(ACTION_OBJECT_ALIGN, true), explore_action(ACTION_EXPLORE, true), exploring(false)
     {
         add_params();
         //printParams();
@@ -53,6 +57,12 @@ public:
         ROS_INFO("Waiting for object align action server...");
         object_align_action.waitForServer();
         ROS_INFO("Connected to obejct align server!");
+
+        ROS_INFO("Waiting for explorer action server...");
+        explore_action.waitForServer();
+        ROS_INFO("Connected to explorer server!");
+
+        start_explore();
     }
 
     void updateClass()
@@ -96,6 +106,23 @@ private:
         } else {
             ROS_WARN("Object align action timed out.");
         }
+    }
+
+    void stop_exploring() {
+        if(exploring) {
+            explore_action.cancelGoal();
+        }
+    }
+
+    void start_explore() {
+        exploring = true;
+        s8_explorer::ExploreGoal goal;
+        goal.explore = true;
+        explore_action.sendGoal(goal, boost::bind(&NodeMaster::explore_done_callback, this, _1, _2), actionlib::SimpleActionClient<s8_explorer::ExploreAction>::SimpleActiveCallback(), actionlib::SimpleActionClient<s8_explorer::ExploreAction>::SimpleFeedbackCallback());
+    }
+
+    void explore_done_callback(const actionlib::SimpleClientGoalState& state, const s8_explorer::ExploreResultConstPtr & result) {
+        exploring = false;
     }
 
     int idxOfMax(int count[])
