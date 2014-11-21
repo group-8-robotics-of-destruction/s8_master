@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <s8_common_node/Node.h>
 #include <s8_msgs/Classification.h>
+#include <s8_master/master_node.h>
 
 // OTHER
 #include <vector>
@@ -16,15 +17,11 @@
 #define HZ                  10
 #define BUFFER_SIZE         1
 
-#define NODE_NAME           		"s8_master"
-#define TOPIC_OBJECT_TYPE   		"/s8/Classification/type"
-#define TOPIC_EXTRACTED_OBJECTS		"/s8/modifiedObject"
-#define CONFIG_DOC                  "catkin_ws/src/s8_master/parameters/parameters.json"
-
-
 using namespace std;
+using namespace s8;
+using namespace s8::master_node;
 
-class NodeMaster: public s8::Node
+class NodeMaster: public Node
 {
     const int hz;
 
@@ -48,9 +45,6 @@ public:
         isClassTypeInitialized = false;
         std::fill(count,count+11,0);
         j = 0;
-    }
-    ~NodeMaster()
-    {
     }
 
     void updateClass()
