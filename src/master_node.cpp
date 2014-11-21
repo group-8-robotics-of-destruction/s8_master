@@ -54,13 +54,13 @@ public:
         std::fill(count,count+11,0);
         j = 0;
 
-        ROS_INFO("Waiting for object align action server...");
-        object_align_action.waitForServer();
-        ROS_INFO("Connected to obejct align server!");
-
         ROS_INFO("Waiting for explorer action server...");
         explore_action.waitForServer();
         ROS_INFO("Connected to explorer server!");
+
+        ROS_INFO("Waiting for object align action server...");
+        object_align_action.waitForServer();
+        ROS_INFO("Connected to object align server!");
 
         start_explore();
     }
@@ -69,7 +69,7 @@ public:
     {
         if (!isClassTypeInitialized)
         {
-            ROS_INFO("Not Initalized!");
+            //ROS_INFO("Not Initalized!");
             return;
         }
         if (j == 50)
@@ -110,11 +110,13 @@ private:
 
     void stop_exploring() {
         if(exploring) {
+            ROS_INFO("STOPPING: Exploring is stopping...");
             explore_action.cancelGoal();
         }
     }
 
     void start_explore() {
+        ROS_INFO("START: Starting exploring");
         exploring = true;
         s8_explorer::ExploreGoal goal;
         goal.explore = true;
@@ -122,6 +124,7 @@ private:
     }
 
     void explore_done_callback(const actionlib::SimpleClientGoalState& state, const s8_explorer::ExploreResultConstPtr & result) {
+        ROS_INFO("STOPPED: Exploring stopped");
         exploring = false;
     }
 
