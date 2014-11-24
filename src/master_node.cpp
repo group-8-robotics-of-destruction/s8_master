@@ -5,6 +5,7 @@
 #include <actionlib/client/simple_action_client.h>
 #include <s8_object_aligner/ObjectAlignAction.h>
 #include <s8_explorer/ExploreAction.h>
+#include <s8_msgs/DistPose.h>
 
 
 // OTHER
@@ -33,6 +34,7 @@ class NodeMaster: public Node
     actionlib::SimpleActionClient<s8_explorer::ExploreAction> explore_action;
 
     ros::Subscriber object_type_subscriber;
+    ros::Subscriber object_dist_pose_subscriber;
     ros::Publisher point_cloud_publisher;
     s8_msgs::Classification classType;
 
@@ -43,12 +45,18 @@ class NodeMaster: public Node
     float circle_red_low_H;
 
     bool exploring;
+    bool classify;
+    bool aligned;
+
+    int doing_nothing_count;
+    int object_detected_in_row_count;
 public:
-    NodeMaster(int hz) : hz(hz), object_align_action(ACTION_OBJECT_ALIGN, true), explore_action(ACTION_EXPLORE, true), exploring(false)
+    NodeMaster(int hz) : hz(hz), object_align_action(ACTION_OBJECT_ALIGN, true), explore_action(ACTION_EXPLORE, true), exploring(false), classify(false), aligned(false), doing_nothing_count(0), object_detected_in_row_count(0)
     {
         add_params();
         //printParams();
         object_type_subscriber = nh.subscribe(TOPIC_OBJECT_TYPE, BUFFER_SIZE, &NodeMaster::object_type_callback, this);
+        object_dist_pose_subscriber = nh.subscribe(TOPIC_OBJECT_DIST_POSE, 1, &NodeMaster::object_dist_pose_callback, this);
 
         isClassTypeInitialized = false;
         std::fill(count,count+11,0);
@@ -67,6 +75,26 @@ public:
 
     void updateClass()
     {
+        if(!classify) {
+            if(!exploring) {
+                doing_nothing_count++;
+                ROS_INFO("Doing nothing");
+
+                if(doing_nothing_count > 10) {
+                    ROS_INFO("Enough doing nothing. Exploring!");
+                    start_explore();
+                }
+            } else {
+                doing_nothing_count = 0;
+            }
+
+            return;
+        }
+
+        doing_nothing_count = 0;
+
+        ROS_INFO("Classifying...");
+
         if (!isClassTypeInitialized)
         {
             //ROS_INFO("Not Initalized!");
@@ -80,6 +108,9 @@ public:
             ROS_INFO("%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d",count[0], count[1],count[2],count[3],count[4],count[5],count[6],count[7],count[8],count[9],count[10]);
             std::fill(count,count+11,0);
             j = 0;
+
+            //Done classifying! Continue exploring. TODO: Make sure it doesnt hit the object.
+            start_explore();
             return;
         }
 
@@ -103,6 +134,15 @@ private:
         if(finised_before_timeout) {
             actionlib::SimpleClientGoalState state = object_align_action.getState();
             ROS_INFO("Object align action finished. %s", state.toString().c_str());
+
+            if(state == actionlib::SimpleClientGoalState::SUCCEEDED) {
+                classify = true;
+                aligned = true;
+            } else {
+                classify = false;
+                aligned = false;
+            }
+
         } else {
             ROS_WARN("Object align action timed out.");
         }
@@ -118,6 +158,8 @@ private:
     void start_explore() {
         ROS_INFO("START: Starting exploring");
         exploring = true;
+        aligned = false;
+        classify = false;
         s8_explorer::ExploreGoal goal;
         goal.explore = true;
         explore_action.sendGoal(goal, boost::bind(&NodeMaster::explore_done_callback, this, _1, _2), actionlib::SimpleActionClient<s8_explorer::ExploreAction>::SimpleActiveCallback(), actionlib::SimpleActionClient<s8_explorer::ExploreAction>::SimpleFeedbackCallback());
@@ -126,6 +168,25 @@ private:
     void explore_done_callback(const actionlib::SimpleClientGoalState& state, const s8_explorer::ExploreResultConstPtr & result) {
         ROS_INFO("STOPPED: Exploring stopped");
         exploring = false;
+    }
+
+    void object_dist_pose_callback(const s8_msgs::DistPose::ConstPtr & dist_pose) {
+        if(dist_pose->dist > 0) {
+            object_detected_in_row_count++;
+
+            if(object_detected_in_row_count > 5) {
+                if(exploring) {
+                    //There is an object. Time to stop exploring and do object aligning.
+                    ROS_INFO("Object detected!");
+                    stop_exploring();
+                } else {
+                    if(!aligned) {
+                        align();
+                        object_detected_in_row_count = 0;
+                    }
+                }
+            }
+        }
     }
 
     int idxOfMax(int count[])
