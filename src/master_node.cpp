@@ -6,6 +6,8 @@
 #include <s8_object_aligner/ObjectAlignAction.h>
 #include <s8_explorer/ExploreAction.h>
 #include <s8_msgs/DistPose.h>
+#include <std_msgs/String.h>
+#include <ras_msgs/RAS_Evidence.h>
 
 
 // OTHER
@@ -36,6 +38,8 @@ class NodeMaster: public Node
     ros::Subscriber object_type_subscriber;
     ros::Subscriber object_dist_pose_subscriber;
     ros::Publisher point_cloud_publisher;
+    ros::Publisher espeak_publisher;
+    ros::Publisher evidence_publisher;
     s8_msgs::Classification classType;
 
     bool isClassTypeInitialized;
@@ -57,6 +61,8 @@ public:
         //printParams();
         object_type_subscriber = nh.subscribe(TOPIC_OBJECT_TYPE, BUFFER_SIZE, &NodeMaster::object_type_callback, this);
         object_dist_pose_subscriber = nh.subscribe(TOPIC_OBJECT_DIST_POSE, 1, &NodeMaster::object_dist_pose_callback, this);
+        espeak_publisher  = nh.advertise<std_msgs::String>(TOPIC_ESPEAK, 1);
+        evidence_publisher  = nh.advertise<ras_msgs::RAS_Evidence>(TOPIC_EVIDENCE, 1);
 
         isClassTypeInitialized = false;
         std::fill(count,count+11,0);
@@ -109,6 +115,15 @@ public:
             std::fill(count,count+11,0);
             j = 0;
 
+            if(idx != 0)
+            {
+            espeakPublish(name.c_str());
+            evidencePublish(name.c_str());
+            evidencePublish(name.c_str());
+            evidencePublish(name.c_str());
+            evidencePublish(name.c_str());
+            ROS_INFO("Publishing");
+            }
             //Done classifying! Continue exploring. TODO: Make sure it doesnt hit the object.
             start_explore();
             return;
@@ -211,9 +226,9 @@ private:
             case(0):
                 return "No Object";
             case(1):
-                return "Red Circle";
+                return "Red Ball";
             case(2):
-                return "Yellow Circle";
+                return "Yellow Ball";
             case(3):
                 return "Red Cube";
             case(4):
@@ -223,7 +238,7 @@ private:
             case(6):
                 return "Blue Cube";
             case(7):
-                return "Orange Star";
+                return "Patric";
             case(8):
                 return "Purple Cross";
             case(9):
@@ -240,6 +255,22 @@ private:
     }
 
 
+    void espeakPublish(string espeak)
+    {
+        std_msgs::String text;
+        text.data = espeak;
+        espeak_publisher.publish(text);
+    }
+
+    void evidencePublish(string type)
+    {
+        ras_msgs::RAS_Evidence evidence;
+        evidence.stamp = ros::Time::now();
+        evidence.group_number = 8;
+        evidence.object_id = type;
+        evidence_publisher.publish(evidence);
+    }
+  
     void add_params()
     {
         boost::property_tree::ptree pt;

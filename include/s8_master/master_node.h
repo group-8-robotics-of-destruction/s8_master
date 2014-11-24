@@ -11,6 +11,8 @@ namespace s8 {
         const std::string TOPIC_OBJECT_TYPE =           "/s8/Classification/type";
         const std::string TOPIC_EXTRACTED_OBJECTS =     "/s8/modifiedObject";
         const std::string TOPIC_OBJECT_DIST_POSE =		"/s8/ip/classification/distPose";
+        const std::string TOPIC_ESPEAK	=				"/espeak/string";
+        const std::string TOPIC_EVIDENCE  =             "/evidence";
 
         const std::string CONFIG_DOC =                  "/home/ras/catkin_ws/src/s8_master/parameters/parameters.json";
 
