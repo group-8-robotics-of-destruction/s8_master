@@ -8,6 +8,8 @@
 #include <s8_msgs/DistPose.h>
 #include <std_msgs/String.h>
 #include <ras_msgs/RAS_Evidence.h>
+#include <sensor_msgs/image_encodings.h>
+#include <sensor_msgs/Image.h>
 
 
 // OTHER
@@ -37,6 +39,7 @@ class NodeMaster: public Node
 
     ros::Subscriber object_type_subscriber;
     ros::Subscriber object_dist_pose_subscriber;
+    ros::Subscriber rgb_image_subscriber;
     ros::Publisher point_cloud_publisher;
     ros::Publisher espeak_publisher;
     ros::Publisher evidence_publisher;
@@ -54,6 +57,8 @@ class NodeMaster: public Node
 
     int doing_nothing_count;
     int object_detected_in_row_count;
+
+    sensor_msgs::ImageConstPtr rgb_image;
 public:
     NodeMaster(int hz) : hz(hz), object_align_action(ACTION_OBJECT_ALIGN, true), explore_action(ACTION_EXPLORE, true), exploring(false), classify(false), aligned(false), doing_nothing_count(0), object_detected_in_row_count(0)
     {
@@ -61,6 +66,7 @@ public:
         //printParams();
         object_type_subscriber = nh.subscribe(TOPIC_OBJECT_TYPE, BUFFER_SIZE, &NodeMaster::object_type_callback, this);
         object_dist_pose_subscriber = nh.subscribe(TOPIC_OBJECT_DIST_POSE, 1, &NodeMaster::object_dist_pose_callback, this);
+        rgb_image_subscriber   = nh.subscribe(TOPIC_RGB_IMAGE, 1, &NodeMaster::rgb_image_callback, this);
         espeak_publisher  = nh.advertise<std_msgs::String>(TOPIC_ESPEAK, 1);
         evidence_publisher  = nh.advertise<ras_msgs::RAS_Evidence>(TOPIC_EVIDENCE, 1);
 
@@ -268,7 +274,13 @@ private:
         evidence.stamp = ros::Time::now();
         evidence.group_number = 8;
         evidence.object_id = type;
+        evidence.image_evidence = *rgb_image;
         evidence_publisher.publish(evidence);
+    }
+
+    void rgb_image_callback(const sensor_msgs::ImageConstPtr& msgColor)
+    {
+        rgb_image = msgColor;
     }
   
     void add_params()
