@@ -27,4 +27,6 @@
   <build_depend>s8_explorer</build_depend>
   <run_depend>ras_msgs</run_depend>
   <build_depend>ras_msgs</build_depend>
+  <run_depend>s8_mapper</run_depend>
+  <build_depend>s8_mapper</build_depend>
 </package>

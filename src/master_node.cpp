@@ -10,6 +10,8 @@
 #include <ras_msgs/RAS_Evidence.h>
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/Image.h>
+#include <s8_mapper/PlaceNode.h>
+#include <s8_mapper/mapper_node.h>
 
 
 // OTHER
@@ -21,6 +23,8 @@
 #include <boost/foreach.hpp>
 #include <algorithm>    // std::min_element, std::max_element
 
+#define TOPO_NODE_OBJECT    1 << 3
+
 
 // DEFINITIONS
 #define HZ                  10
@@ -29,6 +33,7 @@
 using namespace std;
 using namespace s8;
 using namespace s8::master_node;
+using s8::mapper_node::SERVICE_PLACE_NODE;
 
 class NodeMaster: public Node
 {
@@ -44,6 +49,9 @@ class NodeMaster: public Node
     ros::Publisher espeak_publisher;
     ros::Publisher evidence_publisher;
     s8_msgs::Classification classType;
+    ros::Time classify_time;
+    ros::ServiceClient place_node_client;
+
 
     bool isClassTypeInitialized;
     int count[11];
@@ -58,6 +66,9 @@ class NodeMaster: public Node
     int doing_nothing_count;
     int object_detected_in_row_count;
 
+    double object_distance;
+    double object_angle;
+
     sensor_msgs::ImageConstPtr rgb_image;
 public:
     NodeMaster(int hz) : hz(hz), object_align_action(ACTION_OBJECT_ALIGN, true), explore_action(ACTION_EXPLORE, true), exploring(false), classify(false), aligned(false), doing_nothing_count(0), object_detected_in_row_count(0)
@@ -69,10 +80,13 @@ public:
         rgb_image_subscriber   = nh.subscribe(TOPIC_RGB_IMAGE, 1, &NodeMaster::rgb_image_callback, this);
         espeak_publisher  = nh.advertise<std_msgs::String>(TOPIC_ESPEAK, 1);
         evidence_publisher  = nh.advertise<ras_msgs::RAS_Evidence>(TOPIC_EVIDENCE, 1);
+        classify_time = ros::Time::now();
 
         isClassTypeInitialized = false;
         std::fill(count,count+11,0);
         j = 0;
+
+        place_node_client = nh.serviceClient<s8_mapper::PlaceNode>(SERVICE_PLACE_NODE, true);
 
         ROS_INFO("Waiting for explorer action server...");
         explore_action.waitForServer();
@@ -85,8 +99,22 @@ public:
         start_explore();
     }
 
+    void place_node(double x, double y, int value) {
+        s8_mapper::PlaceNode pn;
+        pn.request.x = x;
+        pn.request.y = y;
+        pn.request.value = value;
+        if(!place_node_client.call(pn)) {
+            ROS_FATAL("Failed to call place node.");
+        }
+    }
+
     void updateClass()
     {
+        static double x_sum;
+        static double y_sum;
+        static int cnt;
+
         if(!classify) {
             if(!exploring) {
                 doing_nothing_count++;
@@ -100,45 +128,75 @@ public:
                 doing_nothing_count = 0;
             }
 
+            x_sum = 0;
+            y_sum = 0;
+            cnt = 0;
             return;
+        }
+
+        if(object_distance > 0) {
+            ROS_INFO("distance: %lf, angle: %lf", object_distance, object_angle);
+            double y = object_distance * std::cos(object_angle) - 0.06;
+            double x = object_distance * std::sin(object_angle);
+
+            x_sum += x;
+            y_sum += y;
+            cnt++;
         }
 
         doing_nothing_count = 0;
 
-        ROS_INFO("Classifying...");
+        //ROS_INFO("Classifying...");
 
         if (!isClassTypeInitialized)
         {
             //ROS_INFO("Not Initalized!");
             return;
         }
-        if (j == 50)
+        if (j == 20)
         {
-            int idx = idxOfMax(count);
-            string name = typeFromInt(idx);
-            ROS_INFO("number: %d, name: %s", idx, name.c_str());
-            ROS_INFO("%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d",count[0], count[1],count[2],count[3],count[4],count[5],count[6],count[7],count[8],count[9],count[10]);
-            std::fill(count,count+11,0);
+            int idx = 0;
+            string name;
+            if (count[0] < 0.8*20){
+                idx = idxOfMax(count);
+                name = typeFromInt(idx);
+                ROS_INFO("number: %d, name: %s", idx, name.c_str());
+                ROS_INFO("%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d",count[0], count[1],count[2],count[3],count[4],count[5],count[6],count[7],count[8],count[9],count[10]);
+                std::fill(count,count+11,0);
+            }
             j = 0;
 
             if(idx != 0)
             {
-            espeakPublish(name.c_str());
-            evidencePublish(name.c_str());
-            evidencePublish(name.c_str());
-            evidencePublish(name.c_str());
-            evidencePublish(name.c_str());
-            ROS_INFO("Publishing");
+                espeakPublish(name.c_str());
+                evidencePublish(name.c_str());
+                evidencePublish(name.c_str());
+                evidencePublish(name.c_str());
+                evidencePublish(name.c_str());
+                ROS_INFO("Publishing");
+
+                if(cnt > 0) {
+                    double x = x_sum / cnt;
+                    double y = y_sum / cnt;
+                    
+                    ROS_INFO("Object at (%lf, %lf) value: %d", x, y, TOPO_NODE_OBJECT);
+                    place_node(x, y, TOPO_NODE_OBJECT);
+                }
+            } else {
+                ROS_WARN("Failed to classify");
             }
             //Done classifying! Continue exploring. TODO: Make sure it doesnt hit the object.
-            start_explore();
+            classify_time = ros::Time::now();
+            //start_explore();
+            classify = false;
             return;
         }
 
         int type = classType.type;
         count[type]++;
 
-        //ROS_INFO("%d, %s", classType.type, classType.name.c_str());
+        ROS_INFO("%d, %s", classType.type, classType.name.c_str());
+        ROS_INFO("number of objects seen:%d", j);
         //isClassTypeInitialized = false;
         j++;
     }
@@ -192,21 +250,32 @@ private:
     }
 
     void object_dist_pose_callback(const s8_msgs::DistPose::ConstPtr & dist_pose) {
+        object_distance = dist_pose->dist;
+        object_angle = dist_pose->pose;
+
         if(dist_pose->dist > 0) {
+            ros::Time current_time = ros::Time::now();
             object_detected_in_row_count++;
 
-            if(object_detected_in_row_count > 5) {
+            if(object_detected_in_row_count > 1 && (current_time-classify_time).toSec() > 3) {
                 if(exploring) {
                     //There is an object. Time to stop exploring and do object aligning.
+                    //stop_exploring();
                     ROS_INFO("Object detected!");
-                    stop_exploring();
+                    classify = true;
+                    aligned = true;
+                    object_detected_in_row_count = 0;
                 } else {
                     if(!aligned) {
-                        align();
+                        classify = true;
+                        aligned = true;
+                        //align();
                         object_detected_in_row_count = 0;
                     }
                 }
             }
+            else if((current_time - classify_time).toSec() < 5)
+                object_detected_in_row_count = 0;
         }
     }
 
@@ -214,7 +283,7 @@ private:
     {
         int maxSize = 0;
         int idx = 0;
-        for (int k = 0; k < 11; k++)
+        for (int k = 1; k < 11; k++)
         {
             if (count[k] > maxSize)
             {
