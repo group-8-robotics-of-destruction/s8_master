@@ -34,6 +34,7 @@ using namespace std;
 using namespace s8;
 using namespace s8::master_node;
 using s8::mapper_node::SERVICE_PLACE_NODE;
+using s8::explorer_node::ExploreFinishedReason;
 
 class NodeMaster: public Node
 {
@@ -247,6 +248,11 @@ private:
     void explore_done_callback(const actionlib::SimpleClientGoalState& state, const s8_explorer::ExploreResultConstPtr & result) {
         ROS_INFO("STOPPED: Exploring stopped");
         exploring = false;
+
+        if(result->reason == ExploreFinishedReason::REVISITED) {
+            ROS_INFO("Explorer revisited node. Need to check with map.");
+            //TODO: Do me.
+        }
     }
 
     void object_dist_pose_callback(const s8_msgs::DistPose::ConstPtr & dist_pose) {
