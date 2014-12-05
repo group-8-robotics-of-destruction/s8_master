@@ -12,6 +12,7 @@
 #include <sensor_msgs/Image.h>
 #include <s8_mapper/PlaceNode.h>
 #include <s8_mapper/mapper_node.h>
+#include <s8_mapper/NavigateAction.h>
 
 
 // OTHER
@@ -32,11 +33,15 @@
 #define HZ                  10
 #define BUFFER_SIZE         1
 
+#define ACTION_NAVIGATE_TIMEOUT 30
+
 using namespace std;
 using namespace s8;
 using namespace s8::master_node;
 using s8::mapper_node::SERVICE_PLACE_NODE;
 using s8::explorer_node::ExploreFinishedReason;
+
+#define ACTION_NAVIGATE "/s8/navigate"
 
 class NodeMaster: public Node
 {
@@ -44,6 +49,7 @@ class NodeMaster: public Node
 
     actionlib::SimpleActionClient<s8_object_aligner::ObjectAlignAction> object_align_action;
     actionlib::SimpleActionClient<s8_explorer::ExploreAction> explore_action;
+    actionlib::SimpleActionClient<s8_mapper::NavigateAction> navigate_action;
 
     ros::Subscriber object_type_subscriber;
     ros::Subscriber object_dist_pose_subscriber;
@@ -75,7 +81,7 @@ class NodeMaster: public Node
 
     sensor_msgs::ImageConstPtr rgb_image;
 public:
-    NodeMaster(int hz) : hz(hz), object_align_action(ACTION_OBJECT_ALIGN, true), explore_action(ACTION_EXPLORE, true), navigating(false), exploring(false), classify(false), aligned(false), doing_nothing_count(0), object_detected_in_row_count(0)
+    NodeMaster(int hz) : hz(hz), object_align_action(ACTION_OBJECT_ALIGN, true), navigate_action(ACTION_NAVIGATE, true), explore_action(ACTION_EXPLORE, true), navigating(false), exploring(false), classify(false), aligned(false), doing_nothing_count(0), object_detected_in_row_count(0)
     {
         add_params();
         //printParams();
@@ -99,6 +105,10 @@ public:
         ROS_INFO("Waiting for object align action server...");
         object_align_action.waitForServer();
         ROS_INFO("Connected to object align server!");
+
+        ROS_INFO("Waiting for navigate action server...");
+        navigate_action.waitForServer();
+        ROS_INFO("Connected to navigate server!");
 
         start_explore();
     }
@@ -273,7 +283,12 @@ private:
             ROS_INFO("Explorer revisited node. Need to check with map.");
             navigating = true;
             ROS_INFO("Navigating");
-            //TODO: Do me.
+            
+            s8_mapper::NavigateGoal goal;
+            navigate_action.sendGoal(goal);
+            navigate_action.waitForResult(ros::Duration(ACTION_NAVIGATE_TIMEOUT));
+            ROS_INFO("Done");
+            start_explore();
         }
     }
 
@@ -285,7 +300,7 @@ private:
             ros::Time current_time = ros::Time::now();
             object_detected_in_row_count++;
 
-            if(object_detected_in_row_count > 1 && (current_time-classify_time).toSec() > 5) {
+            if(object_detected_in_row_count > 2 && (current_time-classify_time).toSec() > 5) {
                 if(exploring) {
                     //There is an object. Time to stop exploring and do object aligning.
                     stop_exploring();
