@@ -65,6 +65,7 @@ class NodeMaster: public Node
     bool exploring;
     bool classify;
     bool aligned;
+    bool navigating;
 
     int doing_nothing_count;
     int object_detected_in_row_count;
@@ -74,7 +75,7 @@ class NodeMaster: public Node
 
     sensor_msgs::ImageConstPtr rgb_image;
 public:
-    NodeMaster(int hz) : hz(hz), object_align_action(ACTION_OBJECT_ALIGN, true), explore_action(ACTION_EXPLORE, true), exploring(false), classify(false), aligned(false), doing_nothing_count(0), object_detected_in_row_count(0)
+    NodeMaster(int hz) : hz(hz), object_align_action(ACTION_OBJECT_ALIGN, true), explore_action(ACTION_EXPLORE, true), navigating(false), exploring(false), classify(false), aligned(false), doing_nothing_count(0), object_detected_in_row_count(0)
     {
         add_params();
         //printParams();
@@ -127,15 +128,17 @@ public:
 
         if(!classify) {
             if(!exploring) {
-                doing_nothing_count++;
-                ROS_INFO("Doing nothing");
+                if(!navigating) {
+                    doing_nothing_count++;
+                    ROS_INFO("Doing nothing");
 
-                if(doing_nothing_count > 10) {
-                    ROS_INFO("Enough doing nothing. Exploring!");
-                    start_explore();
+                    if(doing_nothing_count > 10) {
+                        ROS_INFO("Enough doing nothing. Exploring!");
+                        start_explore();
+                    }
+                } else {
+                    doing_nothing_count = 0;
                 }
-            } else {
-                doing_nothing_count = 0;
             }
 
             x_sum = 0;
@@ -256,6 +259,7 @@ private:
         exploring = true;
         aligned = false;
         classify = false;
+        navigating = false;
         s8_explorer::ExploreGoal goal;
         goal.explore = true;
         explore_action.sendGoal(goal, boost::bind(&NodeMaster::explore_done_callback, this, _1, _2), actionlib::SimpleActionClient<s8_explorer::ExploreAction>::SimpleActiveCallback(), actionlib::SimpleActionClient<s8_explorer::ExploreAction>::SimpleFeedbackCallback());
@@ -267,6 +271,8 @@ private:
 
         if(result->reason == ExploreFinishedReason::REVISITED) {
             ROS_INFO("Explorer revisited node. Need to check with map.");
+            navigating = true;
+            ROS_INFO("Navigating");
             //TODO: Do me.
         }
     }
