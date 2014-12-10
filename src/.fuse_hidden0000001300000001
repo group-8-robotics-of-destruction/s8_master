@@ -293,27 +293,11 @@ private:
             goal.type = s8::mapper_node::NavigateType::ToClosestUnexplored;
             navigate_action.sendGoal(goal);
             navigate_action.waitForResult(ros::Duration(ACTION_NAVIGATE_TIMEOUT));
-            auto result = navigate_action.getResult();
-            ROS_INFO("Done %d", result->reason);
-            if(result->reason == 2) {
-                //Everything explored! Go to root?
-                ROS_INFO("Going to root.");
-                goal.type = s8::mapper_node::NavigateType::ToRoot;
-                navigate_action.sendGoal(goal);
-                navigate_action.waitForResult(ros::Duration(ACTION_NAVIGATE_TIMEOUT));
-
-                result = navigate_action.getResult();
-                if(result->reason == 4) {
-                   ROS_INFO("ALL DONE");
-                   exit(0);
-               }
-            }
+            ROS_INFO("Done");
             start_explore();
         } else if(result->reason == ExploreFinishedReason::PREEMPTED) {
             ROS_INFO("Starting to classify!");
-            if (!navigating){
-                classify = true;
-            }
+            classify = true;
             aligned = false;
             object_detected_in_row_count = 0;
         }
@@ -324,11 +308,11 @@ private:
         object_angle = dist_pose->pose;
         object_size = dist_pose->size;
 
-        if(object_distance > 0 && object_size >= 100 && object_distance <= 0.60) {
+        if(object_distance > 0 && object_size >= 100 && object_distance <= 0.50) {
             ros::Time current_time = ros::Time::now();
             object_detected_in_row_count++;
 
-            if(object_detected_in_row_count > 1 && (current_time-classify_time).toSec() > 3) {
+            if(object_detected_in_row_count > 1 && (current_time-classify_time).toSec() > 5) {
                 if(exploring) {
                     //There is an object. Time to stop exploring and do object aligning.
                     ROS_INFO("Object detected! Will stop exploring and then classify.");
