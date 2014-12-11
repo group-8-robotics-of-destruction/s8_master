@@ -189,8 +189,24 @@ public:
             if (count[0] < 0.8*50){
                 idx = idxOfMax(count);
                 name = typeFromInt(idx);
+                ROS_INFO("DETECTED, count[0] <  40");
                 ROS_INFO("number: %d, name: %s", idx, name.c_str());
                 ROS_INFO("%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d",count[0], count[1],count[2],count[3],count[4],count[5],count[6],count[7],count[8],count[9],count[10]);
+            }
+            else {
+                idx = idxOfMax(count);
+                name = typeFromInt(idx);
+                if (count[idx] > 0.1*50 && idx != 0){
+                    ROS_INFO("DETECTED, count[0] >=  40");
+                    ROS_INFO("number: %d, name: %s", idx, name.c_str());
+                    ROS_INFO("%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d",count[0], count[1],count[2],count[3],count[4],count[5],count[6],count[7],count[8],count[9],count[10]);
+                }
+                else {
+                    idx = 0;                
+                    ROS_INFO("FAILED TO DETECT");
+                    ROS_INFO("number: %d, name: %s", idx, name.c_str());
+                    ROS_INFO("%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d",count[0], count[1],count[2],count[3],count[4],count[5],count[6],count[7],count[8],count[9],count[10]);
+                }
             }
             j = 0;
             std::fill(count,count+11,0);
@@ -324,7 +340,7 @@ private:
         object_angle = dist_pose->pose;
         object_size = dist_pose->size;
 
-        if(object_distance > 0 && object_size >= 100 && object_distance <= 0.60) {
+        if(object_distance > 0 && object_size >= 100 && object_distance <= 0.65) {
             ros::Time current_time = ros::Time::now();
             object_detected_in_row_count++;
 
